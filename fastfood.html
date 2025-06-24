@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Food Tycoon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* --- Base Styles & Variables --- */
+        :root {
+            --background-color: #f0f0f0;
+            --panel-bg: #e0e0e0;
+            --panel-border: #4a4a4a;
+            --text-color: #333;
+            --accent-color: #ff6347;
+            --disabled-color: #999;
+            --disabled-bg: #ccc;
+            --money-color: #2e8b57;
+            --font-main: 'Press Start 2P', cursive;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* --- Game Container & Layout --- */
+        #game-container {
+            display: grid;
+            grid-template-areas:
+                "header header"
+                "main upgrades"
+                "businesses businesses";
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        @media (max-width: 900px) {
+            #game-container {
+                grid-template-areas:
+                    "header"
+                    "main"
+                    "upgrades"
+                    "businesses";
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 4px solid var(--panel-border);
+            padding: 20px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
+        }
+        
+        /* --- Header / Stats Bar --- */
+        #header {
+            grid-area: header;
+            text-align: center;
+            padding: 15px;
+        }
+
+        #stats-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat {
+            font-size: 1.2rem;
+        }
+
+        .stat span {
+            color: var(--money-color);
+            font-size: 1.5rem;
+            display: block;
+            margin-top: 5px;
+        }
+        
+        /* --- Main Clicker Area --- */
+        #main-area {
+            grid-area: main;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            min-height: 300px;
+        }
+        
+        #current-business-name {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        #clicker-container {
+            position: relative;
+        }
+        
+        #clicker {
+            width: 150px;
+            height: 150px;
+            cursor: pointer;
+            transform: scale(1);
+            transition: transform 0.1s ease;
+        }
+
+        #clicker:active {
+            transform: scale(0.9);
+        }
+
+        .floating-text {
+            position: absolute;
+            font-size: 1.5rem;
+            color: var(--money-color);
+            opacity: 1;
+            animation: float-up 1.5s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes float-up {
+            to {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+        }
+
+        /* --- Upgrades & Businesses Panels --- */
+        #upgrades-panel {
+            grid-area: upgrades;
+        }
+        
+        #business-panel {
+            grid-area: businesses;
+        }
+        
+        .panel h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 4px solid var(--panel-border);
+        }
+
+        .upgrade-list, .business-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .upgrade, .business {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            padding: 10px;
+            border: 3px solid var(--panel-border);
+            transition: background-color 0.2s;
+        }
+        
+        .upgrade button, .business button {
+            font-family: var(--font-main);
+            font-size: 0.8rem;
+            padding: 10px 15px;
+            border: 3px solid var(--panel-border);
+            background-color: var(--accent-color);
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .upgrade-info, .business-info {
+            flex-grow: 1;
+            margin-left: 15px;
+        }
+
+        .upgrade-info h3, .business-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+        }
+        
+        .upgrade-info p, .business-info p {
+            margin: 0;
+            font-size: 0.7rem;
+        }
+        
+        .upgrade .owned {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-left: auto;
+            padding-left: 10px;
+        }
+
+        .business button.purchased {
+             background-color: var(--money-color);
+             cursor: default;
+        }
+        
+        button:disabled {
+            background-color: var(--disabled-bg);
+            color: var(--disabled-color);
+            cursor: not-allowed;
+            border-color: #777;
+        }
+
+        /* --- PIXEL ART ICONS --- */
+        /* Base for all icons */
+        .icon {
+            width: 60px;
+            height: 60px;
+            position: relative;
+        }
+
+        /* Lemonade Icon */
+        .icon-lemonade { box-shadow:
+            24px 12px 0 0 #fff, 27px 12px 0 0 #fff, 30px 12px 0 0 #fff, 33px 12px 0 0 #fff,
+            21px 15px 0 0 #fff, 24px 15px 0 0 #fff, 27px 15px 0 0 #fff, 30px 15px 0 0 #fff, 33px 15px 0 0 #fff, 36px 15px 0 0 #fff,
+            21px 18px 0 0 #fff, 24px 18px 0 0 #ffeb3b, 27px 18px 0 0 #ffeb3b, 30px 18px 0 0 #ffeb3b, 33px 18px 0 0 #ffeb3b, 36px 18px 0 0 #fff,
+            21px 21px 0 0 #fff, 24px 21px 0 0 #ffeb3b, 27px 21px 0 0 #ffeb3b, 30px 21px 0 0 #ffeb3b, 33px 21px 0 0 #ffeb3b, 36px 21px 0 0 #fff,
+            21px 24px 0 0 #fff, 24px 24px 0 0 #ffeb3b, 27px 24px 0 0 #ffeb3b, 30px 24px 0 0 #ffeb3b, 33px 24px 0 0 #ffeb3b, 36px 24px 0 0 #fff,
+            21px 27px 0 0 #fff, 24px 27px 0 0 #ffeb3b, 27px 27px 0 0 #ffeb3b, 30px 27px 0 0 #ffeb3b, 33px 27px 0 0 #ffeb3b, 36px 27px 0 0 #fff,
+            21px 30px 0 0 #fff, 24px 30px 0 0 #ffeb3b, 27px 30px 0 0 #ffeb3b, 30px 30px 0 0 #ffeb3b, 33px 30px 0 0 #ffeb3b, 36px 30px 0 0 #fff,
+            21px 33px 0 0 #fff, 24px 33px 0 0 #ffeb3b, 27px 33px 0 0 #ffeb3b, 30px 33px 0 0 #ffeb3b, 33px 33px 0 0 #ffeb3b, 36px 33px 0 0 #fff,
+            21px 36px 0 0 #fff, 24px 36px 0 0 #fff, 27px 36px 0 0 #fff, 30px 36px 0 0 #fff, 33px 36px 0 0 #fff, 36px 36px 0 0 #fff,
+            27px 39px 0 0 #fff, 30px 39px 0 0 #fff,
+            27px 42px 0 0 #fff, 30px 42px 0 0 #fff;
+        }
+
+        /* Burger Icon */
+        .icon-burger { box-shadow:
+            21px 18px 0 0 #f5deb3, 24px 18px 0 0 #f5deb3, 27px 18px 0 0 #f5deb3, 30px 18px 0 0 #f5deb3, 33px 18px 0 0 #f5deb3, 36px 18px 0 0 #f5deb3,
+            18px 21px 0 0 #f5deb3, 21px 21px 0 0 #f5deb3, 24px 21px 0 0 #f5deb3, 27px 21px 0 0 #f5deb3, 30px 21px 0 0 #f5deb3, 33px 21px 0 0 #f5deb3, 36px 21px 0 0 #f5deb3, 39px 21px 0 0 #f5deb3,
+            18px 24px 0 0 #90ee90, 21px 24px 0 0 #90ee90, 24px 24px 0 0 #90ee90, 27px 24px 0 0 #90ee90, 30px 24px 0 0 #90ee90, 33px 24px 0 0 #90ee90, 36px 24px 0 0 #90ee90, 39px 24px 0 0 #90ee90,
+            18px 27px 0 0 #ff6347, 21px 27px 0 0 #ff6347, 24px 27px 0 0 #ff6347, 27px 27px 0 0 #ff6347, 30px 27px 0 0 #ff6347, 33px 27px 0 0 #ff6347, 36px 27px 0 0 #ff6347, 39px 27px 0 0 #ff6347,
+            18px 30px 0 0 #8b4513, 21px 30px 0 0 #8b4513, 24px 30px 0 0 #8b4513, 27px 30px 0 0 #8b4513, 30px 30px 0 0 #8b4513, 33px 30px 0 0 #8b4513, 36px 30px 0 0 #8b4513, 39px 30px 0 0 #8b4513,
+            21px 33px 0 0 #f5deb3, 24px 33px 0 0 #f5deb3, 27px 33px 0 0 #f5deb3, 30px 33px 0 0 #f5deb3, 33px 33px 0 0 #f5deb3, 36px 33px 0 0 #f5deb3,
+            18px 36px 0 0 #f5deb3, 21px 36px 0 0 #f5deb3, 24px 36px 0 0 #f5deb3, 27px 36px 0 0 #f5deb3, 30px 36px 0 0 #f5deb3, 33px 36px 0 0 #f5deb3, 36px 36px 0 0 #f5deb3, 39px 36px 0 0 #f5deb3;
+        }
+
+        /* Taco Icon */
+        .icon-taco { box-shadow:
+            27px 15px 0 0 #ffd700, 30px 15px 0 0 #ffd700,
+            24px 18px 0 0 #ffd700, 33px 18px 0 0 #ffd700,
+            21px 21px 0 0 #ffd700, 36px 21px 0 0 #ffd700,
+            21px 24px 0 0 #ffd700, 24px 24px 0 0 #8b4513, 27px 24px 0 0 #ff6347, 30px 24px 0 0 #90ee90, 33px 24px 0 0 #8b4513, 36px 24px 0 0 #ffd700,
+            18px 27px 0 0 #ffd700, 21px 27px 0 0 #8b4513, 24px 27px 0 0 #ff6347, 27px 27px 0 0 #90ee90, 30px 27px 0 0 #8b4513, 33px 27px 0 0 #8b4513, 36px 27px 0 0 #90ee90, 39px 27px 0 0 #ffd700,
+            18px 30px 0 0 #ffd700, 39px 30px 0 0 #ffd700,
+            18px 33px 0 0 #ffd700, 39px 33px 0 0 #ffd700,
+            21px 36px 0 0 #ffd700, 24px 36px 0 0 #ffd700, 27px 36px 0 0 #ffd700, 30px 36px 0 0 #ffd700, 33px 36px 0 0 #ffd700, 36px 36px 0 0 #ffd700;
+        }
+
+        /* Pizza Icon */
+        .icon-pizza { box-shadow:
+            27px 12px 0 0 #ffd700, 30px 12px 0 0 #ffd700,
+            24px 15px 0 0 #ffd700, 27px 15px 0 0 #ff6347, 30px 15px 0 0 #ff6347, 33px 15px 0 0 #ffd700,
+            21px 18px 0 0 #ffd700, 24px 18px 0 0 #ff6347, 27px 18px 0 0 #ff6347, 30px 18px 0 0 #b22222, 33px 18px 0 0 #ff6347, 36px 18px 0 0 #ffd700,
+            18px 21px 0 0 #ffd700, 21px 21px 0 0 #ff6347, 24px 21px 0 0 #b22222, 27px 21px 0 0 #ff6347, 30px 21px 0 0 #ff6347, 33px 21px 0 0 #b22222, 36px 21px 0 0 #ff6347, 39px 21px 0 0 #ffd700,
+            18px 24px 0 0 #ffd700, 21px 24px 0 0 #ffd700, 24px 24px 0 0 #ffd700, 27px 24px 0 0 #ffd700, 30px 24px 0 0 #ffd700, 33px 24px 0 0 #ffd700, 36px 24px 0 0 #ffd700, 39px 24px 0 0 #ffd700;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Header: Displays main game stats -->
+        <header id="header" class="panel">
+            <div id="stats-container">
+                <div class="stat">Money<span id="money-display">$0</span></div>
+                <div class="stat">Per Click<span id="mpc-display">$1</span></div>
+                <div class="stat">Per Second<span id="mps-display">$0</span></div>
+            </div>
+        </header>
+
+        <!-- Main Area: Where the player clicks to earn money -->
+        <main id="main-area" class="panel">
+             <h2 id="current-business-name">Lemonade Stand</h2>
+            <div id="clicker-container">
+                <div id="clicker" class="icon icon-lemonade"></div>
+            </div>
+        </main>
+
+        <!-- Upgrades Panel: Lists available upgrades for the current business -->
+        <aside id="upgrades-panel" class="panel">
+            <h2>Upgrades</h2>
+            <div id="upgrade-list" class="upgrade-list">
+                <!-- Upgrades will be dynamically inserted here by JavaScript -->
+            </div>
+        </aside>
+
+        <!-- Businesses Panel: Lists businesses to unlock -->
+        <section id="business-panel" class="panel">
+            <h2>Your Empire</h2>
+            <div id="business-list" class="business-list">
+                <!-- Businesses will be dynamically inserted here by JavaScript -->
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- GAME STATE ---
+            const state = {
+                money: 0,
+                currentBusinessId: 'lemonade',
+                businesses: {
+                    lemonade: {
+                        name: "Lemonade Stand",
+                        icon: "icon-lemonade",
+                        unlocked: true,
+                        baseMpc: 1,
+                    },
+                    burger: {
+                        name: "Burger Joint",
+                        icon: "icon-burger",
+                        unlockCost: 500,
+                        unlocked: false,
+                        baseMpc: 25,
+                    },
+                    taco: {
+                        name: "Taco Truck",
+                        icon: "icon-taco",
+                        unlockCost: 10000,
+                        unlocked: false,
+                        baseMpc: 200,
+                    },
+                    pizza: {
+                        name: "Pizzeria",
+                        icon: "icon-pizza",
+                        unlockCost: 250000,
+                        unlocked: false,
+                        baseMpc: 1500,
+                    }
+                },
+                upgrades: {
+                    // Lemonade Upgrades
+                    lemonade_click_1: { name: "Sugar Rush", desc: "+1 per click", cost: 50, type: 'click', value: 1, owned: 0, businessId: 'lemonade' },
+                    lemonade_click_2: { name: "Better Ice", desc: "+5 per click", cost: 250, type: 'click', value: 5, owned: 0, businessId: 'lemonade' },
+                    lemonade_auto_1: { name: "Helpful Kid", desc: "+1 per second", cost: 100, type: 'auto', value: 1, owned: 0, businessId: 'lemonade' },
+                    lemonade_auto_2: { name: "Pro Juicer", desc: "+5 per second", cost: 600, type: 'auto', value: 5, owned: 0, businessId: 'lemonade' },
+                    
+                    // Burger Upgrades
+                    burger_click_1: { name: "Juicy Patties", desc: "+20 per click", cost: 1000, type: 'click', value: 20, owned: 0, businessId: 'burger' },
+                    burger_click_2: { name: "Secret Sauce", desc: "+100 per click", cost: 5000, type: 'click', value: 100, owned: 0, businessId: 'burger' },
+                    burger_auto_1: { name: "Grill Cook", desc: "+25 per second", cost: 2000, type: 'auto', value: 25, owned: 0, businessId: 'burger' },
+                    burger_auto_2: { name: "Drive-Thru", desc: "+150 per second", cost: 12000, type: 'auto', value: 150, owned: 0, businessId: 'burger' },
+
+                    // Taco Upgrades
+                    taco_click_1: { name: "Spicy Salsa", desc: "+150 per click", cost: 20000, type: 'click', value: 150, owned: 0, businessId: 'taco' },
+                    taco_auto_1: { name: "Taco Assembler", desc: "+200 per second", cost: 40000, type: 'auto', value: 200, owned: 0, businessId: 'taco' },
+
+                    // Pizza Upgrades
+                    pizza_click_1: { name: "Gourmet Cheese", desc: "+1000 per click", cost: 300000, type: 'click', value: 1000, owned: 0, businessId: 'pizza' },
+                    pizza_auto_1: { name: "Pizza Oven", desc: "+1800 per second", cost: 500000, type: 'auto', value: 1800, owned: 0, businessId: 'pizza' },
+                }
+            };
+
+            // --- DOM ELEMENTS ---
+            const moneyDisplay = document.getElementById('money-display');
+            const mpcDisplay = document.getElementById('mpc-display');
+            const mpsDisplay = document.getElementById('mps-display');
+            const clicker = document.getElementById('clicker');
+            const clickerContainer = document.getElementById('clicker-container');
+            const upgradeList = document.getElementById('upgrade-list');
+            const businessList = document.getElementById('business-list');
+            const currentBusinessName = document.getElementById('current-business-name');
+
+            // --- UTILITY FUNCTIONS ---
+            const formatNumber = (num) => {
+                if (num < 1000) return num.toFixed(0);
+                if (num < 1000000) return (num / 1000).toFixed(2) + 'K';
+                if (num < 1000000000) return (num / 1000000).toFixed(2) + 'M';
+                return (num / 1000000000).toFixed(2) + 'B';
+            };
+
+            const calculateStats = () => {
+                let mpc = state.businesses[state.currentBusinessId].baseMpc;
+                let mps = 0;
+                for (const key in state.upgrades) {
+                    const upgrade = state.upgrades[key];
+                    if (upgrade.owned > 0) {
+                        if (upgrade.type === 'click' && upgrade.businessId === state.currentBusinessId) {
+                            mpc += upgrade.value * upgrade.owned;
+                        }
+                        if (upgrade.type === 'auto') {
+                           mps += upgrade.value * upgrade.owned;
+                        }
+                    }
+                }
+                return { mpc, mps };
+            };
+
+            // --- RENDER FUNCTIONS ---
+            const updateUI = () => {
+                const { mpc, mps } = calculateStats();
+                moneyDisplay.textContent = `$${formatNumber(state.money)}`;
+                mpcDisplay.textContent = `$${formatNumber(mpc)}`;
+                mpsDisplay.textContent = `$${formatNumber(mps)}/s`;
+                
+                // Update button states
+                for (const key in state.upgrades) {
+                    const upgrade = state.upgrades[key];
+                    const btn = document.getElementById(`upgrade-${key}`);
+                    if (btn) {
+                        btn.disabled = state.money < upgrade.cost;
+                    }
+                }
+                 for (const key in state.businesses) {
+                    const business = state.businesses[key];
+                    if (!business.unlocked) {
+                        const btn = document.getElementById(`business-${key}`);
+                        if (btn) {
+                           btn.disabled = state.money < business.unlockCost;
+                        }
+                    }
+                }
+            };
+            
+            const renderUpgrades = () => {
+                upgradeList.innerHTML = '';
+                for (const key in state.upgrades) {
+                    const upgrade = state.upgrades[key];
+                    // Only show upgrades for unlocked businesses
+                    if (state.businesses[upgrade.businessId].unlocked) {
+                        const el = document.createElement('div');
+                        el.className = 'upgrade';
+                        el.innerHTML = `
+                            <div class="upgrade-info">
+                                <h3>${upgrade.name}</h3>
+                                <p>${upgrade.desc}</p>
+                            </div>
+                            <span class="owned">${upgrade.owned}</span>
+                            <button id="upgrade-${key}" data-id="${key}">$${formatNumber(upgrade.cost)}</button>
+                        `;
+                        upgradeList.appendChild(el);
+                    }
+                }
+            };
+            
+            const renderBusinesses = () => {
+                businessList.innerHTML = '';
+                for (const key in state.businesses) {
+                    const business = state.businesses[key];
+                    const el = document.createElement('div');
+                    el.className = 'business';
+                    
+                    let buttonHTML;
+                    if (business.unlocked) {
+                        buttonHTML = `<button class="purchased" disabled>Owned</button>`;
+                    } else {
+                        buttonHTML = `<button id="business-${key}" data-id="${key}">$${formatNumber(business.unlockCost)}</button>`;
+                    }
+                    
+                    el.innerHTML = `
+                        <div class="icon ${business.icon}"></div>
+                        <div class="business-info">
+                            <h3>${business.name}</h3>
+                            ${!business.unlocked ? `<p>Unlocks ${business.baseMpc} MPC base</p>` : `<p>Select to manage</p>`}
+                        </div>
+                        ${buttonHTML}
+                    `;
+
+                    if (business.unlocked) {
+                        el.style.cursor = "pointer";
+                        el.addEventListener('click', () => switchBusiness(key));
+                    }
+                    businessList.appendChild(el);
+                }
+            };
+
+            // --- GAME LOGIC ---
+            const earnMoney = (amount) => {
+                state.money += amount;
+            };
+
+            const handleManualClick = () => {
+                const { mpc } = calculateStats();
+                earnMoney(mpc);
+
+                // Create floating text effect
+                const floatingText = document.createElement('div');
+                floatingText.className = 'floating-text';
+                floatingText.textContent = `+$${formatNumber(mpc)}`;
+                floatingText.style.left = `${Math.random() * 50 + 25}%`;
+                floatingText.style.top = `${Math.random() * 20 + 40}%`;
+                clickerContainer.appendChild(floatingText);
+                setTimeout(() => floatingText.remove(), 1500);
+            };
+            
+            const buyUpgrade = (upgradeId) => {
+                const upgrade = state.upgrades[upgradeId];
+                if (state.money >= upgrade.cost) {
+                    state.money -= upgrade.cost;
+                    upgrade.owned++;
+                    upgrade.cost = Math.ceil(upgrade.cost * 1.15); // Increase cost
+                    
+                    // Re-render to update cost and owned count
+                    const button = document.getElementById(`upgrade-${upgradeId}`);
+                    const ownedDisplay = button.previousElementSibling;
+                    button.innerHTML = `$${formatNumber(upgrade.cost)}`;
+                    ownedDisplay.textContent = upgrade.owned;
+                }
+            };
+
+            const unlockBusiness = (businessId) => {
+                 const business = state.businesses[businessId];
+                 if (state.money >= business.unlockCost && !business.unlocked) {
+                     state.money -= business.unlockCost;
+                     business.unlocked = true;
+                     renderBusinesses();
+                     renderUpgrades(); // Show new upgrades
+                     switchBusiness(businessId);
+                 }
+            };
+
+            const switchBusiness = (businessId) => {
+                state.currentBusinessId = businessId;
+                const business = state.businesses[businessId];
+                
+                currentBusinessName.textContent = business.name;
+                clicker.className = `icon ${business.icon}`;
+            };
+            
+            // --- EVENT LISTENERS ---
+            clicker.addEventListener('click', handleManualClick);
+            
+            upgradeList.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const upgradeId = e.target.dataset.id;
+                    buyUpgrade(upgradeId);
+                }
+            });
+            
+            businessList.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('purchased')) {
+                    const businessId = e.target.dataset.id;
+                    unlockBusiness(businessId);
+                }
+            });
+
+            // --- GAME LOOP ---
+            const gameLoop = () => {
+                const { mps } = calculateStats();
+                earnMoney(mps / 10); // Run 10 times per second
+                updateUI();
+            };
+
+            // --- INITIALIZATION ---
+            const init = () => {
+                console.log("Initializing Fast Food Tycoon...");
+                renderBusinesses();
+                renderUpgrades();
+                setInterval(gameLoop, 100); // 10fps for smooth updates
+            };
+
+            init();
+        });
+    </script>
+</body>
+</html>
+
+
